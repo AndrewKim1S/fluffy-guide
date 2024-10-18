@@ -65,44 +65,66 @@ BufMgr::~BufMgr() {
 
 const Status BufMgr::allocBuf(int & frame) 
 {
+  Status status;
+  // advance clock until suitable page is found
+  int i = 0;
+  while(1) {
+    // advance the clock hand
+    advanceClock();
+    // check if the page is valid
+    if(!bufTable[clockHand].valid) { break; }
+    // check the reference bit
+    if(bufTable[clockHand].refbit) {
+      bufTable[clockHand].refbit = false;
+      continue;
+    }
+    // check if the page is pinned
+    if(bufTable[clockHand].pinCnt > 0) { continue; }
+    i++;
+    if(i == numBufs) { return BUFFEREXCEEDED; }
+  }
+  // Check if the chosen page is dirty
+  BufDesc* evict = &(bufTable[clockHand]);
+  if(evict->dirty) { 
+    if(flushFile(evict->file) != OK) { return UNIXERR; }
+  }
+  
+  // Remove from hashtable
+  hashTable->remove(evict->file, evict->pageNo); 
+    
+  // Clear
+  evict->Clear();
 
+  // Set the frame to the newly acquired frame
+  frame = clockHand;
 
-
-
-
-
+  return OK;
 }
 
 	
 const Status BufMgr::readPage(File* file, const int PageNo, Page*& page)
 {
 
-
-
-
-
 }
 
 
-const Status BufMgr::unPinPage(File* file, const int PageNo, 
-			       const bool dirty) 
+const Status BufMgr::unPinPage(File* file, const int PageNo, const bool dirty) 
 {
-
-
-
-
-
+  int frameNo;
+  if(hashTable->lookup(file, PageNo, frameNo) == HASHNOTFOUND) {
+    return HASHNOTFOUND;
+  }
+  BufDesc pd = bufTable[frameNo];
+  if(pd.pinCnt != 0) { 
+    pd.pinCnt--;
+    pd.dirty = (dirty) ? true : pd.dirty;
+  } else { return PAGENOTPINNED; }
+  return OK;
 }
 
 const Status BufMgr::allocPage(File* file, int& pageNo, Page*& page) 
 {
-
-
-
-
-
-
-
+  
 }
 
 const Status BufMgr::disposePage(File* file, const int pageNo) 
