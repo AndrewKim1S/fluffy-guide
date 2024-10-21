@@ -104,7 +104,7 @@ const Status BufMgr::allocBuf(int & frame)
 	
 const Status BufMgr::readPage(File* file, const int PageNo, Page*& page)
 {
-
+  return OK;
 }
 
 
@@ -124,7 +124,24 @@ const Status BufMgr::unPinPage(File* file, const int PageNo, const bool dirty)
 
 const Status BufMgr::allocPage(File* file, int& pageNo, Page*& page) 
 {
+  // allocate a page in file
+  if(file->allocatePage(pageNo) != OK) { return UNIXERR; }
   
+  // obtain a buffer pool frame
+  int frame;
+  Status s = allocBuf(frame);
+  if(s != OK) { return s; }
+
+  // insert page into hashtable
+  if(hashTable->insert(file, pageNo, frame) != OK) { return HASHTBLERROR; }
+
+  // set the frame
+  bufTable[frame].Set(file, pageNo);
+
+  // Set the page
+  page = &bufPool[frame];
+
+  return OK;
 }
 
 const Status BufMgr::disposePage(File* file, const int pageNo) 
