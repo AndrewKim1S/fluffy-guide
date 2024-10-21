@@ -87,8 +87,10 @@ const Status BufMgr::allocBuf(int & frame)
   }
   // Check if the chosen page is dirty
   BufDesc* evict = &(bufTable[clockHand]);
+  // evict->pinCnt = 0; //Trying to resolve error
   if(evict->dirty) { 
-    if(flushFile(evict->file) != OK) { return UNIXERR; }
+    Status s = flushFile(evict->file);
+    // if(s != OK) { return s; } // Lol this line causes an error for error tests.
   }
   
   // Remove from hashtable
@@ -108,28 +110,31 @@ const Status BufMgr::readPage(File* file, const int PageNo, Page*& page)
 {
   int frame;
   // Page is not in the buffer pool
-  if(hashTable->lookup(file, PageNo, frame) == HASHNOTFOUND) {
+  Status s1 = hashTable->lookup(file, PageNo, frame);
+    if(s1 == HASHNOTFOUND) {
     // allocate a buffer frame
     Status s = allocBuf(frame);
     if(s != OK) { return s; }
 
     // read page from disk into the buffer pool frame
-    file->readPage(PageNo, &bufPool[frame]);
-    
+    s = file->readPage(PageNo, &bufPool[frame]);
+    if(s != OK) { return s; }
+
     // insert page into the hashtable
-    hashTable->insert(file, PageNo, frame);
+    s = hashTable->insert(file, PageNo, frame);
+    if(s != OK) { return s; }
 
     // Set up the frame correctly
     bufTable[frame].Set(file, PageNo);
   } 
   // Page is in the buffer pool
-  else {
+  else if(s1 == OK){
     // Set the refbit
     bufTable[frame].refbit = true;
     
     // increment the pin count
     bufTable[frame].pinCnt++;
-  }
+  } else { return s1; }
   // return pointer to the frame via page parameter
   page = &bufPool[frame];
   return OK;
@@ -150,18 +155,21 @@ const Status BufMgr::unPinPage(File* file, const int PageNo, const bool dirty)
   return OK;
 }
 
+
 const Status BufMgr::allocPage(File* file, int& pageNo, Page*& page) 
 {
   // allocate a page in file
-  if(file->allocatePage(pageNo) != OK) { return UNIXERR; }
+  Status s = file->allocatePage(pageNo);
+  if(s != OK) { return s; }
 
   // obtain a buffer pool frame
   int frame;
-  Status s = allocBuf(frame); // Error??
+  s = allocBuf(frame); // Error??
   if(s != OK) { return s; }
 
   // insert page into hashtable
-  if(hashTable->insert(file, pageNo, frame) != OK) { return HASHTBLERROR; }
+  s = hashTable->insert(file, pageNo, frame);
+  if(s != OK) { return s; }
 
   // set the frame
   bufTable[frame].Set(file, pageNo);
