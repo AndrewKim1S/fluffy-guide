@@ -114,7 +114,7 @@ const Status BufMgr::readPage(File* file, const int PageNo, Page*& page)
     if(s != OK) { return s; }
 
     // read page from disk into the buffer pool frame
-    file->readPage(PageNo, page);
+    file->readPage(PageNo, &bufPool[frame]);
     
     // insert page into the hashtable
     hashTable->insert(file, PageNo, frame);
