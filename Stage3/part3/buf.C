@@ -68,6 +68,7 @@ const Status BufMgr::allocBuf(int & frame)
   // advance clock until suitable page is found
   int i = 0;
   while(1) {
+    if(i > numBufs) { return BUFFEREXCEEDED; }
     // advance the clock hand
     advanceClock();
     // check if the page is valid
@@ -78,9 +79,11 @@ const Status BufMgr::allocBuf(int & frame)
       continue;
     }
     // check if the page is pinned
-    if(bufTable[clockHand].pinCnt > 0) { continue; }
-    i++;
-    if(i == numBufs) { return BUFFEREXCEEDED; }
+    if(bufTable[clockHand].pinCnt > 0) { 
+      i++;
+      continue; 
+    }
+    break;
   }
   // Check if the chosen page is dirty
   BufDesc* evict = &(bufTable[clockHand]);
@@ -139,10 +142,10 @@ const Status BufMgr::unPinPage(File* file, const int PageNo, const bool dirty)
   if(hashTable->lookup(file, PageNo, frameNo) == HASHNOTFOUND) {
     return HASHNOTFOUND;
   }
-  BufDesc pd = bufTable[frameNo];
-  if(pd.pinCnt != 0) { 
-    pd.pinCnt--;
-    pd.dirty = (dirty) ? true : pd.dirty;
+  BufDesc* pd = &bufTable[frameNo];
+  if(pd->pinCnt > 0) { 
+    pd->pinCnt--;
+    pd->dirty = (dirty) ? true : pd->dirty;
   } else { return PAGENOTPINNED; }
   return OK;
 }
@@ -151,10 +154,10 @@ const Status BufMgr::allocPage(File* file, int& pageNo, Page*& page)
 {
   // allocate a page in file
   if(file->allocatePage(pageNo) != OK) { return UNIXERR; }
-  
+
   // obtain a buffer pool frame
   int frame;
-  Status s = allocBuf(frame);
+  Status s = allocBuf(frame); // Error??
   if(s != OK) { return s; }
 
   // insert page into hashtable
