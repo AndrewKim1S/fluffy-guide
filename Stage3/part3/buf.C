@@ -65,7 +65,6 @@ BufMgr::~BufMgr() {
 
 const Status BufMgr::allocBuf(int & frame) 
 {
-  Status status;
   // advance clock until suitable page is found
   int i = 0;
   while(1) {
@@ -104,6 +103,32 @@ const Status BufMgr::allocBuf(int & frame)
 	
 const Status BufMgr::readPage(File* file, const int PageNo, Page*& page)
 {
+  int frame;
+  // Page is not in the buffer pool
+  if(hashTable->lookup(file, PageNo, frame) == HASHNOTFOUND) {
+    // allocate a buffer frame
+    Status s = allocBuf(frame);
+    if(s != OK) { return s; }
+
+    // read page from disk into the buffer pool frame
+    file->readPage(PageNo, page);
+    
+    // insert page into the hashtable
+    hashTable->insert(file, PageNo, frame);
+
+    // Set up the frame correctly
+    bufTable[frame].Set(file, PageNo);
+  } 
+  // Page is in the buffer pool
+  else {
+    // Set the refbit
+    bufTable[frame].refbit = true;
+    
+    // increment the pin count
+    bufTable[frame].pinCnt++;
+  }
+  // return pointer to the frame via page parameter
+  page = &bufPool[frame];
   return OK;
 }
 
