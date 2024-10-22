@@ -1,0 +1,11 @@
+Andrew Kim
+akim98@wisc.edu
+Contributions: completed alloc page, allocBuf
+
+Mukund Krishnakumar
+mkrishnakum2@wisc.edu
+Contributions: completed unpin page, worked on error checking code
+
+Charlie Liu
+cliu637@wisc.edu
+Contributions: completed read page, debug clock algorithm & unpin functions
