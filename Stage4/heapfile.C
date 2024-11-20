@@ -54,7 +54,7 @@ const Status destroyHeapFile(const string fileName) {
 // constructor opens the underlying file
 HeapFile::HeapFile(const string& fileName, Status& returnStatus) {
     Status status;
-    Page* pagePtr;
+    // Page* pagePtr;
 
     cout << "opening file " << fileName << endl;
 
@@ -120,7 +120,7 @@ const int HeapFile::getRecCnt() const { return headerPage->recCnt; }
 // and pinned.  returns a pointer to the record via the rec parameter
 
 const Status HeapFile::getRecord(const RID& rid, Record& rec) {
-    Status status;
+    // Status status;
 
     if (rid.pageNo == curPageNo && curPage != NULL) {
         curPage->getRecord(rid, rec);
@@ -134,10 +134,12 @@ const Status HeapFile::getRecord(const RID& rid, Record& rec) {
 
         // Bookkeeping stuff
         curPage->getRecord(rid, rec);
-        curPageNo = rid.pageNo;
+        //curPageNo = rid.pageNo;
         curDirtyFlag = false;
-        curRec = rid;
+        //curRec = rid;
     }
+    curPageNo = rid.pageNo;
+    curRec = rid;
 
     return OK;
     // cout<< "getRecord. record (" << rid.pageNo << "." << rid.slotNo << ")" <<
@@ -381,10 +383,10 @@ InsertFileScan::~InsertFileScan() {
 
 // Insert a record into the file
 const Status InsertFileScan::insertRecord(const Record& rec, RID& outRid) {
-    Page* newPage;
+    // Page* newPage;
     int newPageNo;
-    Status status, unpinstatus;
-    RID rid;
+    Status status;//, unpinstatus;
+    // RID rid;
 
     // check for very large records
     if ((unsigned int)rec.length > PAGESIZE - DPFIXED) {
@@ -434,4 +436,5 @@ const Status InsertFileScan::insertRecord(const Record& rec, RID& outRid) {
         curRec = outRid;
         return OK;
     }
+    return status;
 }
