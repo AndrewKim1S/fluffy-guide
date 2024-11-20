@@ -1,7 +1,7 @@
-#include "db.h"
 #include "heapfile.h"
 #include "error.h"
 #include "page.h"
+#include "db.h"
 #include <cstring>
 #include <stdio.h>
 #include <string.h>
@@ -231,19 +231,21 @@ const Status HeapFileScan::scanNext(RID& outRid) {
     // Add the page to buffer and pin it
     status = bufMgr->readPage(filePtr, iterator_num, iterator);
 
-    while(true) {
-        if(iterator == nullptr) { break; }
-        
+    while (true) {
+        if (iterator == nullptr) {
+            break;
+        }
+
         bool x = true;
-        while(true) {
+        while (true) {
             // For the first record of new page
-            if(x) {
+            if (x) {
                 iterator->firstRecord(tmpRid);
                 x = false;
                 // record matches filter
-                if(matchRec(rec)) {
+                if (matchRec(rec)) {
                     // update class member
-                    curRec = tmpRid; 
+                    curRec = tmpRid;
                     // Unpin the page
                     bufMgr->unPinPage(filePtr, iterator_num, false);
                     return status;
@@ -251,15 +253,17 @@ const Status HeapFileScan::scanNext(RID& outRid) {
             }
             // For rest of the records on the page
             else {
-                if(iterator->nextRecord(tmpRid, nextRid) != NORECORDS) { break; }
-                // Get the next record 
+                if (iterator->nextRecord(tmpRid, nextRid) != NORECORDS) {
+                    break;
+                }
+                // Get the next record
                 tmpRid = nextRid;
                 iterator->getRecord(tmpRid, rec);
 
                 // record matches filter
-                if(matchRec(rec)) {
+                if (matchRec(rec)) {
                     // update class member
-                    curRec = tmpRid; 
+                    curRec = tmpRid;
                     // Unpin the page
                     bufMgr->unPinPage(filePtr, iterator_num, false);
                     return status;
@@ -269,7 +273,7 @@ const Status HeapFileScan::scanNext(RID& outRid) {
 
         // Unpin the page
         bufMgr->unPinPage(filePtr, iterator_num, false);
-        
+
         // Iterate to the next page
         iterator->getNextPage(iterator_num);
         // Add the page to buffer and pin it
@@ -389,7 +393,7 @@ const Status InsertFileScan::insertRecord(const Record& rec, RID& outRid) {
     }
 
     // when curPage is null
-    if(curPage == nullptr) {
+    if (curPage == nullptr) {
         headerPage->lastPage = curPageNo;
         hdrDirtyFlag = true;
         bufMgr->readPage(filePtr, curPageNo, curPage);
@@ -397,14 +401,14 @@ const Status InsertFileScan::insertRecord(const Record& rec, RID& outRid) {
     // check if curPage is too small
     status = curPage->insertRecord(rec, outRid);
     // curPage is fine
-    if(status == OK) { 
+    if (status == OK) {
         headerPage->recCnt++;
         curDirtyFlag = true;
         curRec = outRid;
-        return OK; 
+        return OK;
     }
     // Page is too small add record on another page
-    else if(status == NOSPACE) {
+    else if (status == NOSPACE) {
         // Create new page and link it
         int newPageNo;
         Page* newPage;
@@ -420,12 +424,14 @@ const Status InsertFileScan::insertRecord(const Record& rec, RID& outRid) {
 
         // insert record into newPage
         status = curPage->insertRecord(rec, outRid);
-        if(status != OK) { return status; }
+        if (status != OK) {
+            return status;
+        }
 
         // Bookkeeping
         headerPage->recCnt++;
         curDirtyFlag = true;
         curRec = outRid;
-        return OK; 
+        return OK;
     }
 }
