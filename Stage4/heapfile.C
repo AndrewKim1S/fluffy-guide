@@ -220,8 +220,62 @@ const Status HeapFileScan::scanNext(RID& outRid) {
     Status status = OK;
     RID nextRid;
     RID tmpRid;
-    int nextPageNo;
     Record rec;
+
+    // set initial page to search at curPage
+    Page* iterator = curPage;
+    // set initial page num to curPageNo
+    int iterator_num = curPageNo;
+    // set current record to curRec
+    tmpRid = curRec;
+    // Add the page to buffer and pin it
+    status = bufMgr->readPage(filePtr, iterator_num, iterator);
+
+    while(true) {
+        if(iterator == nullptr) { break; }
+        
+        bool x = true;
+        while(true) {
+            // For the first record of new page
+            if(x) {
+                iterator->firstRecord(tmpRid);
+                x = false;
+                // record matches filter
+                if(matchRec(rec)) {
+                    // update class member
+                    curRec = tmpRid; 
+                    // Unpin the page
+                    bufMgr->unPinPage(filePtr, iterator_num, false);
+                    return status;
+                }
+            }
+            // For rest of the records on the page
+            else {
+                if(iterator->nextRecord(tmpRid, nextRid) != NORECORDS) { break; }
+                // Get the next record 
+                tmpRid = nextRid;
+                iterator->getRecord(tmpRid, rec);
+
+                // record matches filter
+                if(matchRec(rec)) {
+                    // update class member
+                    curRec = tmpRid; 
+                    // Unpin the page
+                    bufMgr->unPinPage(filePtr, iterator_num, false);
+                    return status;
+                }
+            }
+        }
+
+        // Unpin the page
+        bufMgr->unPinPage(filePtr, iterator_num, false);
+        
+        // Iterate to the next page
+        iterator->getNextPage(iterator_num);
+        // Add the page to buffer and pin it
+        status = bufMgr->readPage(filePtr, iterator_num, iterator);
+    }
+    return status;
 }
 
 // returns pointer to the current record.  page is left pinned
@@ -332,5 +386,46 @@ const Status InsertFileScan::insertRecord(const Record& rec, RID& outRid) {
     if ((unsigned int)rec.length > PAGESIZE - DPFIXED) {
         // will never fit on a page, so don't even bother looking
         return INVALIDRECLEN;
+    }
+
+    // when curPage is null
+    if(curPage == nullptr) {
+        headerPage->lastPage = curPageNo;
+        hdrDirtyFlag = true;
+        bufMgr->readPage(filePtr, curPageNo, curPage);
+    }
+    // check if curPage is too small
+    status = curPage->insertRecord(rec, outRid);
+    // curPage is fine
+    if(status == OK) { 
+        headerPage->recCnt++;
+        curDirtyFlag = true;
+        curRec = outRid;
+        return OK; 
+    }
+    // Page is too small add record on another page
+    else if(status == NOSPACE) {
+        // Create new page and link it
+        int newPageNo;
+        Page* newPage;
+        bufMgr->allocPage(filePtr, newPageNo, newPage);
+        newPage->init(newPageNo);
+
+        // Set curPage to new page
+        curPage = newPage;
+        curPageNo = newPageNo;
+
+        // put newPage into buffer
+        bufMgr->readPage(filePtr, curPageNo, curPage);
+
+        // insert record into newPage
+        status = curPage->insertRecord(rec, outRid);
+        if(status != OK) { return status; }
+
+        // Bookkeeping
+        headerPage->recCnt++;
+        curDirtyFlag = true;
+        curRec = outRid;
+        return OK; 
     }
 }
