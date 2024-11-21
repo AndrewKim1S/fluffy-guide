@@ -223,73 +223,58 @@ const Status HeapFileScan::scanNext(RID& outRid) {
     RID nextRid;
     RID tmpRid;
     Record rec;
-
-    // set initial page to search at curPage
-    Page* iterator = curPage;
-    // set initial page num to curPageNo
-    int iterator_num = curPageNo;
-
+    
     // set current record to curRec
     tmpRid = curRec;
 
-    if (iterator == nullptr) {
-        cout << "iterator is null" << endl;
-    } else {
-        cout << "iterator is not null" << endl;
-    }
+    // the first page to scan is the current page
+    int nextPageNo = curPageNo;
 
-    // Add the page to buffer and pin it
-    status = bufMgr->readPage(filePtr, iterator_num, iterator);
+    bool topPage = false;
+    while(true) {
+        //if(tmpRid.pageNo == -1) { return FILEEOF; }
 
-    while (true) {
-        if (iterator == nullptr) {
-            break;
+        if(curPage != nullptr) {
+            status = bufMgr->unPinPage(filePtr, nextPageNo, false);
+            if(status != OK && status != PAGENOTPINNED) { return status; }
         }
 
-        bool x = true;
-        while (true) {
-            // For the first record of new page
-            if (x) {
-                iterator->firstRecord(tmpRid);
-                x = false;
-                // record matches filter
-                if (matchRec(rec)) {
-                    // update class member
-                    curRec = tmpRid;
-                    // Unpin the page
-                    bufMgr->unPinPage(filePtr, iterator_num, false);
-                    return status;
-                }
-            }
-            // For rest of the records on the page
-            else {
-                if (iterator->nextRecord(tmpRid, nextRid) != NORECORDS) {
-                    break;
-                }
-                // Get the next record
-                tmpRid = nextRid;
-                iterator->getRecord(tmpRid, rec);
+        status = bufMgr->readPage(filePtr, nextPageNo, curPage);
+        if(status != OK) { return status; }
 
-                // record matches filter
-                if (matchRec(rec)) {
-                    // update class member
-                    curRec = tmpRid;
-                    // Unpin the page
-                    bufMgr->unPinPage(filePtr, iterator_num, false);
-                    return status;
-                }
-            }
+        if(topPage) {
+          status = curPage->firstRecord(tmpRid);
+          topPage = false;
         }
 
-        // Unpin the page
-        bufMgr->unPinPage(filePtr, iterator_num, false);
+        while(true) {
 
-        // Iterate to the next page
-        iterator->getNextPage(iterator_num);
-        // Add the page to buffer and pin it
-        status = bufMgr->readPage(filePtr, iterator_num, iterator);
+            if(status == ENDOFPAGE) { 
+                topPage = true;
+                break; 
+            }
+
+            status = curPage->getRecord(tmpRid, rec);
+            if(status != OK) { return status; }
+    
+            if(matchRec(rec)) {
+                curRec = tmpRid;
+                outRid = tmpRid;
+                status = bufMgr->unPinPage(filePtr, nextPageNo, false);
+                if(status != OK) { return status; }
+
+                return OK;
+            }
+            status = curPage->nextRecord(tmpRid, nextRid);
+            tmpRid = nextRid;
+        }
+
+        status = curPage->getNextPage(nextPageNo);
+        
+        //if(status != OK) { return status; }
     }
-    return status;
+    return OK;
+
 }
 
 // returns pointer to the current record.  page is left pinned
