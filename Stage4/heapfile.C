@@ -33,7 +33,7 @@ const Status createHeapFile(const string fileName) {
         std::strncpy(hdrPage->fileName, fileName.c_str(), MAXNAMESIZE - 1);
         hdrPage->firstPage = newPageNo;
         hdrPage->lastPage = newPageNo;
-        hdrPage->pageCnt = 0;
+        hdrPage->pageCnt = 1;
         hdrPage->recCnt = 0;
 
         // initialize the new page contents
@@ -42,6 +42,7 @@ const Status createHeapFile(const string fileName) {
         // unpin both pages and mark them as dirty
         bufMgr->unPinPage(file, newPageNo, true);
         bufMgr->unPinPage(file, hdrPageNo, true);
+        return OK;
     }
     return (FILEEXISTS);
 }
@@ -230,39 +231,40 @@ const Status HeapFileScan::scanNext(RID& outRid) {
     // the first page to scan is the current page
     int nextPageNo = curPageNo;
 
-    bool topPage = false;
     while(true) {
-        //if(tmpRid.pageNo == -1) { return FILEEOF; }
 
+        // We have reached the end of file
+        if(nextPageNo == -1) { return FILEEOF; } 
+
+        // unpin the current page if it is not null
         if(curPage != nullptr) {
             status = bufMgr->unPinPage(filePtr, nextPageNo, false);
-            if(status != OK && status != PAGENOTPINNED) { return status; }
+            if(status != OK ) { return status; } //&& status != PAGENOTPINNED) { return status; }
         }
 
+        // Read next page into buffer pool
         status = bufMgr->readPage(filePtr, nextPageNo, curPage);
         if(status != OK) { return status; }
 
-        if(topPage) {
-          status = curPage->firstRecord(tmpRid);
-          topPage = false;
+        // when no records have been processed
+        if(curRec.pageNo == NULLRID.pageNo && curRec.slotNo == NULLRID.slotNo) {
+            status = curPage->firstRecord(tmpRid);
+        } else {
+            status = curPage->nextRecord(curRec, tmpRid);
         }
 
         while(true) {
 
             if(status == ENDOFPAGE) { 
-                topPage = true;
                 break; 
             }
 
             status = curPage->getRecord(tmpRid, rec);
             if(status != OK) { return status; }
     
+            curRec = tmpRid;
             if(matchRec(rec)) {
-                curRec = tmpRid;
                 outRid = tmpRid;
-                status = bufMgr->unPinPage(filePtr, nextPageNo, false);
-                if(status != OK) { return status; }
-
                 return OK;
             }
             status = curPage->nextRecord(tmpRid, nextRid);
@@ -271,7 +273,6 @@ const Status HeapFileScan::scanNext(RID& outRid) {
 
         status = curPage->getNextPage(nextPageNo);
         
-        //if(status != OK) { return status; }
     }
     return OK;
 
