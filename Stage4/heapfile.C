@@ -245,9 +245,57 @@ const Status HeapFileScan::scanNext(RID& outRid) {
     RID tmpRid;
     Record rec;
 
-    if (curPage == NULL) {
-        // start at the beginning page to find the next non-null page
-        curPageNo = headerPage->firstPage;
+    // the first page to scan is the current page
+    int nextPageNo = curPageNo;
+
+    while (true) {
+        // We have reached the end of file
+        if (nextPageNo == -1) {
+            return FILEEOF;
+        }
+
+        // unpin the current page if it is not null
+        if (curPage != nullptr) {
+            status = bufMgr->unPinPage(filePtr, nextPageNo, false);
+            if (status != OK) {
+                return status;
+            }  //&& status != PAGENOTPINNED) { return status; }
+        }
+
+        // Read next page into buffer pool
+        status = bufMgr->readPage(filePtr, nextPageNo, curPage);
+        if (status != OK) {
+            return status;
+        }
+
+        // when no records have been processed
+        if (curRec.pageNo == NULLRID.pageNo &&
+            curRec.slotNo == NULLRID.slotNo) {
+            status = curPage->firstRecord(tmpRid);
+        } else {
+            status = curPage->nextRecord(curRec, tmpRid);
+        }
+
+        while (true) {
+            if (status == ENDOFPAGE) {
+                break;
+            }
+
+            status = curPage->getRecord(tmpRid, rec);
+            if (status != OK) {
+                return status;
+            }
+
+            curRec = tmpRid;
+            if (matchRec(rec)) {
+                outRid = tmpRid;
+                return OK;
+            }
+            status = curPage->nextRecord(tmpRid, nextRid);
+            tmpRid = nextRid;
+        }
+
+        status = curPage->getNextPage(nextPageNo);
     }
 }
 
