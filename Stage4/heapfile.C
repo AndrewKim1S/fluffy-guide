@@ -63,6 +63,7 @@ const Status createHeapFile(const string fileName) {
         if (status != OK) {
             return status;
         }
+        return status;
     }
     return (FILEEXISTS);
 }
