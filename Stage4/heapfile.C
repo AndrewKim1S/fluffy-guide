@@ -83,18 +83,34 @@ HeapFile::HeapFile(const string& fileName, Status& returnStatus) {
     // open the file and read in the header page and the first data page
     if ((status = db.openFile(fileName, filePtr)) == OK) {
         // header page
-        filePtr->getFirstPage(headerPageNo);
+        status = filePtr->getFirstPage(headerPageNo);
+        if (status != OK) {
+            cerr << "error getting first page of file\n";
+            returnStatus = status;
+            return;
+        }
         Page* page;
-        bufMgr->readPage(filePtr, headerPageNo, page);
+        status = bufMgr->readPage(filePtr, headerPageNo, page);
+        if (status != OK) {
+            cerr << "error reading header page of file\n";
+            returnStatus = status;
+            return;
+        }
         headerPage = (FileHdrPage*)page;
         hdrDirtyFlag = false;
 
         // first page of heap file
         curPageNo = headerPage->firstPage;
         Page* curPage;
-        bufMgr->readPage(filePtr, headerPageNo, curPage);
+        status = bufMgr->readPage(filePtr, curPageNo, curPage);
+        if (status != OK) {
+            cerr << "error reading first data page of file\n";
+            returnStatus = status;
+            return;
+        }
         curDirtyFlag = false;
         curRec = NULLRID;
+        returnStatus = status;
     } else {
         cerr << "open of heap file failed\n";
         returnStatus = status;
