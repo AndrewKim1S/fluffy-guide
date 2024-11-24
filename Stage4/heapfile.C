@@ -63,6 +63,9 @@ const Status createHeapFile(const string fileName) {
         if (status != OK) {
             return status;
         }
+        status = db.closeFile(file);
+        if(status != OK) { return status; }
+
         return status;
     }
     return (FILEEXISTS);
@@ -76,7 +79,7 @@ const Status destroyHeapFile(const string fileName) {
 // constructor opens the underlying file
 HeapFile::HeapFile(const string& fileName, Status& returnStatus) {
     Status status;
-    // Page* pagePtr;
+    Page* pagePtr;
 
     cout << "opening file " << fileName << endl;
 
@@ -101,7 +104,6 @@ HeapFile::HeapFile(const string& fileName, Status& returnStatus) {
 
         // first page of heap file
         curPageNo = headerPage->firstPage;
-        Page* curPage;
         status = bufMgr->readPage(filePtr, curPageNo, curPage);
         if (status != OK) {
             cerr << "error reading first data page of file\n";
