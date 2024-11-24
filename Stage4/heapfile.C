@@ -158,30 +158,29 @@ const int HeapFile::getRecCnt() const { return headerPage->recCnt; }
 // and pinned.  returns a pointer to the record via the rec parameter
 
 const Status HeapFile::getRecord(const RID& rid, Record& rec) {
-    // Status status;
+    Status status;
 
     if (rid.pageNo == curPageNo && curPage != NULL) {
-        curPage->getRecord(rid, rec);
+        status = curPage->getRecord(rid, rec);
+        if(status != OK) { return status; }
     }
 
     else {
-        // TODO: Assuming a page is pinned, how to do if page is not pinned
-        bufMgr->unPinPage(filePtr, curPageNo, curDirtyFlag);
+        status = bufMgr->unPinPage(filePtr, curPageNo, curDirtyFlag);
+        if(status != OK) { return status; }
 
-        bufMgr->readPage(filePtr, rid.pageNo, curPage);
+        status = bufMgr->readPage(filePtr, rid.pageNo, curPage);
+        if(status != OK) { return status; }
 
         // Bookkeeping stuff
-        curPage->getRecord(rid, rec);
-        // curPageNo = rid.pageNo;
+        status = curPage->getRecord(rid, rec);
+        if(status != OK) { return status; }
         curDirtyFlag = false;
-        // curRec = rid;
     }
     curPageNo = rid.pageNo;
     curRec = rid;
 
     return OK;
-    // cout<< "getRecord. record (" << rid.pageNo << "." << rid.slotNo << ")" <<
-    // endl;
 }
 
 HeapFileScan::HeapFileScan(const string& name, Status& status)
@@ -291,6 +290,9 @@ const Status HeapFileScan::scanNext(RID& outRid) {
         // if there is no record read in next page
         if (status == ENDOFPAGE || status == NORECORDS) {
             
+            // failed debugging
+            //if(headerPage->lastPage == curPageNo) { return FILEEOF; }
+
             // Get the next page
             int nextPageNo;
             status = curPage->getNextPage(nextPageNo);
@@ -308,9 +310,11 @@ const Status HeapFileScan::scanNext(RID& outRid) {
             status = bufMgr->readPage(filePtr, curPageNo, curPage);
             if(status != OK) { return status; }
 
+            //if(curPage->slotCnt == 0) { return FILEEOF; }
+
             // Start at the first record of new page
             status = curPage->firstRecord(curRec);
-
+            if(status != OK) { return FILEEOF; }
         } 
         // else there is record, set curRec to nextRid
         else { curRec = nextRid; }
