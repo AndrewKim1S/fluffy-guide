@@ -1,0 +1,11 @@
+Andrew Kim
+akim98@wisc.edu
+Contributions: Implemented ScanNext, insertRecord. Debugged  
+
+Charlie Liu
+cliu637@wisc.edu
+Contributions: Implemented CreateHeapFile, getRecord, ScanNext, Debugged
+
+Mukund Krishnakumar
+mkrishnakum2@wisc.edu
+Contributions: Implemented ScanNext, insertRecord, Debugged
