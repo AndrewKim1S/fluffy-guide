@@ -29,6 +29,7 @@ select rating, network, name from soaps where rating >= 5.0;
 
 /* selection that doesn't find anything */
 select real_name, starid from stars where starid > 567;
+print table stars;
 
 /* select into a non-existent relation */
 select network, soapid, name into ned

@@ -43,26 +43,37 @@ const Status QU_Select(const string & result,
     // Setup attrDesc
     AttrDesc attrDesc;
     AttrDesc *attrDescArg; // - what we pass in
+    
+    const char* filterArg;
+    int tmp_i;
+    float tmp_f;
+
     // when attr is NULL, there is no WHERE condition
     if(attr != NULL) { 
         status = attrCat->getInfo(attr->relName, attr->attrName, attrDesc);
-        /*switch(attr->attrType) {
+        if(status != OK) { return status; }
+        switch(attr->attrType) {
+            case 0:
+                filterArg = attrValue;
+                break;
             case 1:
-                int attrValue = atoi (attrValue);
+                tmp_i = atoi(attrValue);
+                filterArg = (char *)&tmp_i;
                 break;
             case 2:
-                attrValue = atof(attrValue);
+                tmp_f = atof(attrValue);
+                filterArg = (char *)&tmp_f;
                 break;
-        }*/
-        if(status != OK) { return status; }
+        }
         attrDescArg = &attrDesc;
     } else {
-        attrDescArg = NULL;
+        attrDescArg = new AttrDesc();
         memcpy(attrDescArg->relName, projNames[0].relName, MAXNAME);
 
         attrDescArg->attrType = 0;
         attrDescArg->attrLen = 0;
         attrDescArg->attrOffset = 0;
+        filterArg = NULL;
     }
 
     // Get the output record length
@@ -72,7 +83,8 @@ const Status QU_Select(const string & result,
     }
 
     // Call ScanSelect for heapfilescan selection
-    status = ScanSelect(result, projCnt, attrDescArray, attrDescArg, op, attrValue, reclen);
+    status = ScanSelect(result, projCnt, attrDescArray, attrDescArg, op, 
+        filterArg, reclen);
     if(status != OK) { return status; }
 }
 
