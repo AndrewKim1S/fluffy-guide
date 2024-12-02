@@ -56,7 +56,6 @@ const Status QU_Insert(const string & relation,
                 // attrList len is -1??
                 switch(attrDescArray[i].attrType) {
                     // copy char* to data
-                    // TODO There is an error in how I am copying the string 
                     case 0:
                         // attrList[j].attrValue is a void ptr so cast to char*
                         memcpy((char*)(outputData) + outputOffset, (char*)attrList[j].attrValue, attrDescArray[i].attrLen);
