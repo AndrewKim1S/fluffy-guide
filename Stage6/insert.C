@@ -56,19 +56,20 @@ const Status QU_Insert(const string & relation,
                 // attrList len is -1??
                 switch(attrDescArray[i].attrType) {
                     // copy char* to data
-                    // TODO There is an error in how I am copying the string I believe. fuck c syntax man 
+                    // TODO There is an error in how I am copying the string 
                     case 0:
-                        memcpy(outputData + outputOffset, (char*)attrList[j].attrValue, attrDescArray[i].attrLen);
+                        // attrList[j].attrValue is a void ptr so cast to char*
+                        memcpy((char*)(outputData) + outputOffset, (char*)attrList[j].attrValue, attrDescArray[i].attrLen);
                         break;
                     // copy integer to data
                     case 1:
                         int_tmp = atoi((char*)attrList[j].attrValue);
-                        memcpy(outputData + outputOffset, (char*)&int_tmp, attrDescArray[i].attrLen);
+                        memcpy((char*)(outputData) + outputOffset, (char*)&int_tmp, attrDescArray[i].attrLen);
                         break;
                     // copy float to data
                     case 2:
                         float_tmp = atof((char*)attrList[j].attrValue);
-                        memcpy(outputData + outputOffset, (char*)&float_tmp, attrDescArray[i].attrLen);
+                        memcpy((char*)(outputData) + outputOffset, (char*)&float_tmp, attrDescArray[i].attrLen);
                         break;
                 }
                 break;
